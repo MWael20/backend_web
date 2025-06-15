@@ -20,44 +20,38 @@
             <a href="products.html">Products</a>
             <a href="searchProduct.html">About</a>
             <a href="login.html" id="login-link">Login</a>
-             <a href="#" id="logout-link" style="display: none;">Logout</a>
-             <a href="admin.html" id="admin-link" style="display: none;">Admin</a>
+            <a href="#" id="logout-link" style="display: none;">Logout</a>
+            <a href="admin.html" id="admin-link" style="display: none;">Admin</a>
         </div>
         <div class="nav-icons">
             <div class="nav-search">
-  <!-- Search Button in Navbar -->
-<div class="search-button">
-  <i class="fas fa-search"></i>
-</div>
-
-<!-- Hidden Search Overlay -->
-<div class="search-overlay">
-  <input type="text" id="searchInput" placeholder="Search products..." />
-  <button id="searchButton"><i class="fas fa-search"></i></button>
-</div>
-
-
+                <button class="search-button">
+                    <i class="fas fa-search"></i>
+                </button>
+                <div class="search-overlay">
+                    <input type="text" id="searchInput" placeholder="Search products..." />
+                    <button id="searchButton"><i class="fas fa-search"></i></button>
+                </div>
+            </div>
             <a href="cart.html"><i class="fas fa-shopping-cart"></i></a>
         </div>
     </nav>
 
- <main>
-    
-<section id="category-section">
-    <h2>Categories</h2>
-    <div id="category-grid" class="category-grid"></div>
-  </section>
+    <main>
+        <section id="category-section">
+            <h2>Categories</h2>
+            <div id="category-grid" class="category-grid"></div>
+        </section>
 
-  <!-- All Products Section -->
-  <section id="all-products-container">
-    <!-- Products grouped by category will go here -->
-  </section>
+        <!-- All Products Section -->
+        <section id="products-container">
+            <!-- Products will be loaded here -->
+        </section>
+    </main>
 
-<script src="script.js"></script> <!-- or inline script -->
+    <script src="script.js"></script>
 
-  </main>
-
- <footer>
+    <footer>
         <div class="footer-content">
             <div class="footer-section">
                 <h4>About Alien PC Parts</h4>
@@ -80,7 +74,5 @@
             </div>
         </div>
     </footer>
-
-  
 </body>
 </html>

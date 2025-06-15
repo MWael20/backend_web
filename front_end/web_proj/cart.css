@@ -102,6 +102,9 @@
     cursor: pointer;
     font-weight: bold;
     transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .quantity-btn:hover {
@@ -117,16 +120,20 @@
     color: var(--text-color);
     font-size: 1.1rem;
     font-weight: 600;
+    display: inline-block;
 }
 
 .remove-btn {
     background: rgba(255, 77, 77, 0.1);
     color: #ff4d4d;
     border: none;
-    padding: 0.5rem;
+    padding: 0.8rem;
     border-radius: 8px;
     cursor: pointer;
     transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .remove-btn:hover {

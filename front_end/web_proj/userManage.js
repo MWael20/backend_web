@@ -94,16 +94,25 @@ function editUser(userId) {
   const row = document.querySelector(`button[onclick="editUser('${userId}')"]`).closest("tr");
   const nameCell = row.children[1];
   const emailCell = row.children[2];
+  const roleCell = row.children[3]; // Admin/User role cell
 
   const currentName = nameCell.textContent;
   const currentEmail = emailCell.textContent;
+  const isAdmin = roleCell.textContent === "Admin";
 
-  // Save original values as data attributes on the row
   row.setAttribute("data-original-name", currentName);
   row.setAttribute("data-original-email", currentEmail);
+  row.setAttribute("data-original-role", isAdmin ? "Admin" : "User");
 
   nameCell.innerHTML = `<input type="text" value="${currentName}" id="edit-name-${userId}">`;
   emailCell.innerHTML = `<input type="email" value="${currentEmail}" id="edit-email-${userId}">`;
+
+  roleCell.innerHTML = `
+    <label>
+      <input type="checkbox" id="edit-admin-${userId}" ${isAdmin ? "checked" : ""}>
+      Is Admin
+    </label>
+  `;
 
   const actionsCell = row.children[5];
   actionsCell.innerHTML = `
@@ -117,10 +126,12 @@ function editUser(userId) {
 }
 
 
+
 async function saveUser(userId) {
   const token = localStorage.getItem("token");
   const newName = document.getElementById(`edit-name-${userId}`).value;
   const newEmail = document.getElementById(`edit-email-${userId}`).value;
+  const isAdmin = document.getElementById(`edit-admin-${userId}`).checked;
 
   try {
     const res = await fetch(`http://localhost:3000/api/v1/user/${userId}`, {
@@ -129,26 +140,29 @@ async function saveUser(userId) {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${token}`
       },
-      body: JSON.stringify({ username: newName, email: newEmail })
+      body: JSON.stringify({ username: newName, email: newEmail, is_admin: isAdmin })
     });
 
     if (!res.ok) throw new Error("Failed to update user");
 
-    alert(" User updated successfully!");
+    alert("User updated successfully!");
     location.reload();
   } catch (err) {
-    console.error(" Error updating user:", err.message);
+    console.error("Error updating user:", err.message);
     alert("Failed to update user.");
   }
 }
+
 function cancelEdit(userId) {
   const row = document.querySelector(`button[onclick="saveUser('${userId}')"]`).closest("tr");
 
   const originalName = row.getAttribute("data-original-name");
   const originalEmail = row.getAttribute("data-original-email");
+  const originalRole = row.getAttribute("data-original-role");
 
   row.children[1].textContent = originalName;
   row.children[2].textContent = originalEmail;
+  row.children[3].textContent = originalRole;
 
   row.children[5].innerHTML = `
     <button class="action-btn edit-btn" onclick="editUser('${userId}')">
@@ -159,4 +173,5 @@ function cancelEdit(userId) {
     </button>
   `;
 }
+
 

@@ -1,4 +1,16 @@
+document.addEventListener('DOMContentLoaded', () => {
+  const token = localStorage.getItem('token');
+  const isAdmin = localStorage.getItem('isAdmin') === 'true';
 
+  if (!token || !isAdmin) {
+    // Redirect unauthorized users to homepage
+    window.location.href = 'index.html';
+  }
+});
+
+ 
+ 
+ 
  document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const productsTable = document.getElementById('products-table').getElementsByTagName('tbody')[0];

@@ -16,7 +16,7 @@ function authJwt() {
     },
   }).unless({
     path: [
-      //  Public routes that don’t need auth
+      //  Public routes that don't need auth
       { url: /.*\.html$/, methods: ['GET'] },
 
       { url: /\/public\/uploads(.*)/, methods: ["GET", "OPTIONS"] },
@@ -27,7 +27,6 @@ function authJwt() {
       { url: /\/api\/v1\/order(.*)/, methods: ["GET", "OPTIONS" ] },
       { url: /\/api\/v1\/review(.*)/, methods: ["GET", "OPTIONS"] },
       { url: /\/api\/v1\/shipping(.*)/, methods: ["GET", "OPTIONS"] },
-      { url: /\/api\/v1\/cart(.*)/, methods: ["GET", "OPTIONS" , "PUT" , "POST"] },
       { url: /\/api\/v1\/payment(.*)/, methods: ["GET", "OPTIONS"] },
 
       //  Auth routes
@@ -43,7 +42,7 @@ function authJwt() {
       "/index.html",
       "/products.html",
       "/userManage.html",
-      "/admin.html",
+      
       "/searchProduct.html",
       "/",
     ],

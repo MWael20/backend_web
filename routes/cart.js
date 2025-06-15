@@ -2,28 +2,46 @@ const express = require('express');
 const router = express.Router();
 const { Cart } = require('../Data/cart');
 const { Product } = require('../Data/product');
-
+const { verifyToken } = require('../helpers/authMiddleware');
 
 // Get user's cart
-router.get('/', async (req, res) => {
-    try {
-        let cart = await Cart.findOne({ user: req.user.id })
-            .populate('items.product', 'name price image');
+router.get('/', verifyToken, async (req, res) => {
+    console.log("🔍 req.user:", req.user);
+  try {
+    let cart = await Cart.findOne({ user: req.user.id })
+      .populate('items.product', 'name price image');
 
-        if (!cart) {
-            cart = new Cart({ user: req.user.id, items: [] });
-            await cart.save();
-        }
-
-        res.json(cart);
-    } catch (error) {
-        console.error('Error fetching cart:', error);
-        res.status(500).json({ success: false, error: 'Failed to fetch cart' });
+    if (!cart) {
+      cart = new Cart({ user: req.user.id, items: [] });
+      await cart.save();
     }
+
+    res.json(cart);
+  } catch (error) {
+    console.error('Error fetching cart:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch cart' });
+  }
+});
+
+router.get('/:id', verifyToken, async (req, res) => {
+  try {
+    let cart = await Cart.findOne({ user: req.user.id })
+      .populate('items.product', 'name price image');
+
+    if (!cart) {
+      cart = new Cart({ user: req.user.id, items: [] });
+      await cart.save();
+    }
+
+    res.json(cart);
+  } catch (error) {
+    console.error('Error fetching cart:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch cart' });
+  }
 });
 
 // Add item to cart
-router.post('/', async (req, res) => {
+router.post('/', verifyToken, async (req, res) => {
     try {
         const { productId, quantity } = req.body;
 
@@ -72,7 +90,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update item quantity
-router.put('/:productId', async (req, res) => {
+router.put('/:productId', verifyToken, async (req, res) => {
     try {
         const { productId } = req.params;
         const { quantity } = req.body;
@@ -113,7 +131,7 @@ router.put('/:productId', async (req, res) => {
 });
 
 // Remove item from cart
-router.delete('/:productId', async (req, res) => {
+router.delete('/:productId', verifyToken, async (req, res) => {
     try {
         const { productId } = req.params;
 
@@ -134,7 +152,7 @@ router.delete('/:productId', async (req, res) => {
 });
 
 // Clear cart
-router.delete('/', async (req, res) => {
+router.delete('/', verifyToken, async (req, res) => {
     try {
         const cart = await Cart.findOne({ user: req.user.id });
         if (!cart) {

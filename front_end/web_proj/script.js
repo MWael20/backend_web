@@ -97,108 +97,166 @@ document.querySelectorAll('.product-card').forEach(card => {
 });
 
 // Add to cart functionality with enhanced animation
-document.querySelectorAll('.add-to-cart').forEach(button => {
-    button.addEventListener('click', async function(event) {
-        event.preventDefault();
-        const product = this.closest('.product-card');
-        
-        const productId = product.querySelector('img').getAttribute('onclick').match(/id=([^'&]+)/)[1];
-        const productName = product.querySelector('h3').textContent;
-        const productPrice = parseFloat(product.querySelector('.price').textContent.match(/\d+(\.\d+)?/)[0]);
-        const productImage = product.querySelector('img').src;
-        
-        const newItem = {
-            productId,
-            name: productName,
-            price: productPrice,
-            image: productImage,
-            quantity: 1
-        };
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.add-to-cart').forEach(button => {
+        button.addEventListener('click', async function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            const product = this.closest('.product-card');
+            
+            const productId = product.querySelector('img').getAttribute('onclick').match(/id=([^'&]+)/)[1];
+            const productName = product.querySelector('h3').textContent;
+            const productPrice = parseFloat(product.querySelector('.price').textContent.match(/\d+(\.\d+)?/)[0]);
+            const productImage = product.querySelector('img').src;
+            
+            const newItem = {
+                productId,
+                name: productName,
+                price: productPrice,
+                image: productImage,
+                quantity: 1
+            };
 
-        const token = localStorage.getItem('token');
+            const token = localStorage.getItem('token');
 
-        try {
-            if (token) {
-                // ✅ Logged in → send to server
-                const response = await fetch('http://localhost:3000/api/v1/cart', {
-                          method: 'POST',
-                          headers: {
+            try {
+                if (token) {
+                    // Add to server cart if logged in
+                    const response = await fetch('http://localhost:3000/api/v1/cart', {
+                        method: 'POST',
+                        headers: {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${token}`
-                          },
-                          body: JSON.stringify({ productId, quantity: 1 })
-                        });
+                        },
+                        body: JSON.stringify({ productId, quantity: 1 })
+                    });
 
-                if (!response.ok) throw new Error('Failed to add item to cart');
-
-                // You may optionally fetch updated cart here
-            } else {
-                // ❌ Not logged in → use localStorage
-                let cartItems = JSON.parse(localStorage.getItem('cart') || '[]');
-                const index = cartItems.findIndex(item => item.productId === productId);
-
-                if (index !== -1) {
-                    cartItems[index].quantity = Math.min(cartItems[index].quantity + 1, 10);
+                    if (response.ok) {
+                        // Successfully added to server cart
+                        const data = await response.json();
+                        // Update local cart from server data
+                        if (data && Array.isArray(data.items)) {
+                            const cartItems = data.items.map(item => ({
+                                productId: item.product._id,
+                                name: item.product.name,
+                                price: item.product.price,
+                                image: item.product.image,
+                                quantity: item.quantity
+                            }));
+                            localStorage.setItem('cart', JSON.stringify(cartItems));
+                        }
+                    } else if (response.status === 401) {
+                        // Token expired or invalid, fall back to localStorage
+                        localStorage.removeItem('token');
+                        addToLocalCart(newItem);
+                    } else {
+                        throw new Error('Failed to add item to cart');
+                    }
                 } else {
-                    cartItems.push(newItem);
+                    // Add to localStorage if not logged in
+                    addToLocalCart(newItem);
                 }
 
-                localStorage.setItem('cart', JSON.stringify(cartItems));
+                // Update cart badge
+                updateCartBadge();
+
+                // Ripple animation
+                const ripple = document.createElement('span');
+                ripple.className = 'ripple';
+                this.appendChild(ripple);
+
+                const rect = this.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height);
+                ripple.style.width = ripple.style.height = `${size}px`;
+
+                const x = event.clientX - rect.left - size / 2;
+                const y = event.clientY - rect.top - size / 2;
+                ripple.style.left = `${x}px`;
+                ripple.style.top = `${y}px`;
+
+                setTimeout(() => ripple.remove(), 600);
+                this.classList.add('clicked');
+                setTimeout(() => this.classList.remove('clicked'), 200);
+
+                // Show success message
+                const message = this.nextElementSibling;
+                message.style.display = "inline";
+                setTimeout(() => {
+                    message.style.display = "none";
+                }, 2000);
+
+                showNotification(`${productName} added to cart!`);
+            } catch (error) {
+                console.error('Error adding to cart:', error);
+                showNotification('Failed to add item to cart', 'error');
             }
-
-            // ✅ Update cart badge
-            updateCartBadge();
-
-            // 💫 Ripple animation
-            const ripple = document.createElement('span');
-            ripple.className = 'ripple';
-            this.appendChild(ripple);
-
-            const rect = this.getBoundingClientRect();
-            const size = Math.max(rect.width, rect.height);
-            ripple.style.width = ripple.style.height = `${size}px`;
-
-            const x = event.clientX - rect.left - size / 2;
-            const y = event.clientY - rect.top - size / 2;
-            ripple.style.left = `${x}px`;
-            ripple.style.top = `${y}px`;
-
-            setTimeout(() => ripple.remove(), 600);
-            this.classList.add('clicked');
-            setTimeout(() => this.classList.remove('clicked'), 200);
-
-            showNotification(`${productName} added to cart!`);
-        } catch (error) {
-            console.error('Error adding to cart:', error);
-            showNotification('Failed to add item to cart', 'error');
-        }
+        });
     });
 });
 
-// Enhanced notification system
-function showNotification(message) {
-    const notification = document.createElement('div');
-    notification.className = 'notification';
-    notification.innerHTML = `
-        <div class="notification-content">
-            <i class="fas fa-check-circle"></i>
-            <span>${message}</span>
-        </div>
-    `;
+// Helper function to add item to local cart
+function addToLocalCart(newItem) {
+    let cartItems = JSON.parse(localStorage.getItem('cart') || '[]');
+    const existingItemIndex = cartItems.findIndex(item => item.productId === newItem.productId);
     
+    if (existingItemIndex !== -1) {
+        cartItems[existingItemIndex].quantity = Math.min(cartItems[existingItemIndex].quantity + 1, 10);
+    } else {
+        cartItems.push(newItem);
+    }
+    
+    localStorage.setItem('cart', JSON.stringify(cartItems));
+}
+
+// Check if we're on the cart page
+function isCartPage() {
+    return window.location.pathname.includes('cart.html');
+}
+
+// Update cart display only if we're on the cart page
+function updateCartDisplay() {
+    if (!isCartPage()) {
+        return; // Skip if not on cart page
+    }
+
+    const cartItemsList = document.getElementById('cartItemsList');
+    if (!cartItemsList) {
+        return; // Skip if cart items list doesn't exist
+    }
+
+    // Rest of cart display update code...
+}
+
+// Update cart badge safely
+function updateCartBadge() {
+    const badge = document.querySelector('.cart-badge');
+    if (!badge) {
+        const cartIcon = document.querySelector('.fa-shopping-cart');
+        if (cartIcon && cartIcon.parentElement) {
+            const newBadge = document.createElement('span');
+            newBadge.className = 'cart-badge';
+            cartIcon.parentElement.appendChild(newBadge);
+            updateCartBadge();
+            return;
+        }
+        return;
+    }
+
+    const cartItems = JSON.parse(localStorage.getItem('cart') || '[]');
+    const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+    badge.textContent = totalItems;
+    badge.style.display = totalItems > 0 ? 'block' : 'none';
+}
+
+// Show notification
+function showNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
     document.body.appendChild(notification);
     
-    // Trigger animation
-    requestAnimationFrame(() => {
-        notification.classList.add('show');
-    });
-    
-    // Remove notification after 3 seconds
     setTimeout(() => {
-        notification.classList.remove('show');
-        setTimeout(() => {
-            notification.remove();
-        }, 300);
+        notification.remove();
     }, 3000);
 }
 
@@ -417,157 +475,166 @@ searchStyle.textContent = `
 `;
 
 window.addEventListener('DOMContentLoaded', () => {
-    fetchFeaturedProducts();
-    fetchCategories();
-    fetchBrands();
-    fetchAllProducts();
+    loadFeaturedProducts();
+    loadCategories();
+    loadBrands();
+    loadProducts();
+    updateCartBadge();
 });
 
-function fetchFeaturedProducts() {
-    fetch('http://localhost:3000/api/v1/product?populate=brand,category')
-        .then(res => res.json())
-        .then(products => {
-            const featuredContainer = document.getElementById('featured-products-container');
-            featuredContainer.innerHTML = '';
+// Load featured products
+async function loadFeaturedProducts() {
+    try {
+        const response = await fetch('/api/v1/product?populate=brand,category');
+        if (!response.ok) throw new Error('Failed to fetch featured products');
+        const products = await response.json();
 
-            const featuredProducts = products.filter(product => product.isFeatured);
+        const container = document.getElementById('featured-products-container');
+        if (!container) return; // Skip if element doesn't exist on this page
 
-            featuredProducts.forEach(product => {
-                const card = document.createElement('div');
-                card.className = 'product-card';
-                card.innerHTML = `
-                        <img class="product-image" src="${product.image}" alt="${product.name}" onclick="window.location.href='productDetails.html?id=${product._id}'">
-                        <div class="product-info">
-                            <h3 onclick="window.location.href='productDetails.html?id=${product._id}'">${product.name}</h3>
-                            <p class="brand">${product.brand?.name || "Unknown Brand"}</p>
-                            <p class="price">Price: ${product.price} EGP</p>
-                        </div>
-                        <div class="product-actions">
-                            <button class="add-to-cart" onclick="event.stopPropagation(); addToCart(event)">
-                                <i class="fas fa-shopping-cart"></i> Add to Cart
-                            </button>
-                            <span class="cart-message" style="display:none;">✔ Added to Cart!</span>
-                        </div>
-                    `;
-                featuredContainer.appendChild(card);
-            });
-        })
-        .catch(error => {
-            console.error('Error loading featured products:', error);
-        });
+        // Filter featured products
+        const featuredProducts = products.filter(product => product.isFeatured);
+
+        container.innerHTML = featuredProducts.map(product => `
+            <div class="product-card">
+                <img class="product-image" src="${product.image}" alt="${product.name}" onclick="window.location.href='productDetails.html?id=${product._id}'">
+                <div class="product-info">
+                    <h3 onclick="window.location.href='productDetails.html?id=${product._id}'">${product.name}</h3>
+                    <p class="brand">${product.brand?.name || "Unknown Brand"}</p>
+                    <p class="price">${product.price} EGP</p>
+                </div>
+                <div class="product-actions">
+                    <button class="add-to-cart" onclick="event.stopPropagation(); addToCart(event)">
+                        <i class="fas fa-shopping-cart"></i> Add to Cart
+                    </button>
+                    <span class="cart-message" style="display:none;">✔ Added to Cart!</span>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading featured products:', error);
+    }
 }
 
-function fetchCategories() {
-    fetch('http://localhost:3000/api/v1/category')
-        .then(res => res.json())
-        .then(data => {
-            const container = document.getElementById('category-grid');
-            container.innerHTML = '';
+// Load categories
+async function loadCategories() {
+    try {
+        const response = await fetch('/api/v1/category');
+        if (!response.ok) throw new Error('Failed to fetch categories');
+        const categories = await response.json();
 
-            data.forEach(category => {
+        const categoryGrid = document.getElementById('category-grid');
+        if (!categoryGrid) return; // Skip if element doesn't exist on this page
+
+        categoryGrid.innerHTML = categories.map(category => `
+            <div class="category-card" onclick="window.location.href='products.html?category=${category._id}'">
+                <img src="${category.image}" alt="${category.name}">
+                <h3>${category.name}</h3>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error fetching categories:', error);
+    }
+}
+
+// Load brands
+async function loadBrands() {
+    try {
+        const response = await fetch('/api/v1/brand');
+        if (!response.ok) throw new Error('Failed to fetch brands');
+        const brands = await response.json();
+
+        const brandsContainer = document.getElementById('brands-container');
+        if (!brandsContainer) return; // Skip if element doesn't exist on this page
+
+        brandsContainer.innerHTML = brands.map(brand => `
+            <div class="brand-card">
+                <img src="${brand.logo}" alt="${brand.name}">
+                <h3>${brand.name}</h3>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error fetching brands:', error);
+    }
+}
+
+// Load products
+async function loadProducts() {
+    try {
+        const response = await fetch('/api/v1/product?populate=brand,category');
+        if (!response.ok) throw new Error('Failed to fetch products');
+        const products = await response.json();
+
+        const productsContainer = document.getElementById('products-container');
+        if (!productsContainer) return; // Skip if element doesn't exist on this page
+
+        // Group products by category
+        const grouped = {};
+        products.forEach(product => {
+            const category = product.category?.name || 'Others';
+            if (!grouped[category]) grouped[category] = [];
+            grouped[category].push(product);
+        });
+
+        // Clear container
+        productsContainer.innerHTML = '';
+
+        // Create sections for each category
+        Object.entries(grouped).forEach(([category, items]) => {
+            const section = document.createElement('section');
+            section.classList.add('category-section');
+
+            const h2 = document.createElement('h2');
+            h2.textContent = category;
+            section.appendChild(h2);
+
+            const grid = document.createElement('div');
+            grid.className = 'product-grid';
+
+            items.forEach((product, i) => {
                 const card = document.createElement('div');
-                card.className = 'category-card';
+                card.className = 'product-card fade-in';
+                card.style.animationDelay = `${(i + 1) * 0.1}s`;
 
                 card.innerHTML = `
-                    <img src="${category.image}" alt="${category.name}">
-                    <h3>${category.name}</h3>
+                    <img class="product-image" src="${product.image}" alt="${product.name}" onclick="window.location.href='productDetails.html?id=${product._id}'">
+                    <div class="product-info">
+                        <h3 onclick="window.location.href='productDetails.html?id=${product._id}'">${product.name}</h3>
+                        <p class="brand">${product.brand?.name || "Unknown Brand"}</p>
+                        <p class="price">${product.price} EGP</p>
+                    </div>
+                    <div class="product-actions">
+                        <button class="add-to-cart" onclick="event.stopPropagation(); addToCart(event)">
+                            <i class="fas fa-shopping-cart"></i> Add to Cart
+                        </button>
+                        <span class="cart-message" style="display:none;">✔ Added to Cart!</span>
+                    </div>
                 `;
 
-                card.addEventListener('click', () => {
-                    window.location.href = `searchProduct.html?category=${category._id}`;
-                });
-
-                container.appendChild(card);
+                grid.appendChild(card);
             });
-        })
-        .catch(err => {
-            console.error('Error fetching categories:', err);
+
+            section.appendChild(grid);
+            productsContainer.appendChild(section);
         });
+    } catch (error) {
+        console.error('Failed to load products:', error);
+    }
 }
 
-function fetchBrands() {
-    fetch('http://localhost:3000/api/v1/brand')
-        .then(res => res.json())
-        .then(data => {
-            const container = document.getElementById('brand-grid');
-            container.innerHTML = '';
+// Search functionality
+const searchButton = document.querySelector('.search-button');
+const searchOverlay = document.querySelector('.search-overlay');
 
-            data.forEach(brand => {
-                const card = document.createElement('div');
-                card.className = 'brand-card';
-                card.innerHTML = `<h3>${brand.name}</h3>`;
-                container.appendChild(card);
-            });
-        })
-        .catch(err => {
-            console.error('Error fetching brands:', err);
-        });
-}
+searchButton.addEventListener('click', (e) => {
+    e.preventDefault();
+    searchOverlay.classList.toggle('active');
+});
 
-function fetchAllProducts() {
-    fetch('http://localhost:3000/api/v1/product?populate=brand,category')
-        .then(res => res.json())
-        .then(products => {
-            const container = document.getElementById('all-products-container');
-            const grouped = {};
-
-            products.forEach(product => {
-                const category = product.category?.name || 'Others';
-                if (!grouped[category]) grouped[category] = [];
-                grouped[category].push(product);
-            });
-
-            Object.entries(grouped).forEach(([category, items], index) => {
-                const section = document.createElement('section');
-                section.classList.add('category-section');
-
-                const h2 = document.createElement('h2');
-                h2.textContent = category;
-                section.appendChild(h2);
-
-                const grid = document.createElement('div');
-                grid.className = 'product-grid';
-
-                items.forEach((product, i) => {
-                    const card = document.createElement('div');
-                    card.className = 'product-card fade-in';
-                    card.style.animationDelay = `${(i + 1) * 0.1}s`;
-
-                    card.innerHTML = `
-                        <img class="product-image" src="${product.image}" alt="${product.name}" onclick="window.location.href='productDetails.html?id=${product._id}'">
-                        <div class="product-info">
-                            <h3 onclick="window.location.href='productDetails.html?id=${product._id}'">${product.name}</h3>
-                            <p class="brand">${product.brand?.name || "Unknown Brand"}</p>
-                            <p class="price">Price: ${product.price} EGP</p>
-                        </div>
-                        <div class="product-actions">
-                            <button class="add-to-cart" onclick="event.stopPropagation(); addToCart(event)">
-                                <i class="fas fa-shopping-cart"></i> Add to Cart
-                            </button>
-                            <span class="cart-message" style="display:none;">✔ Added to Cart!</span>
-                        </div>
-                    `;
-
-                    grid.appendChild(card);
-                });
-
-                section.appendChild(grid);
-                container.appendChild(section);
-            });
-        })
-        .catch(err => {
-            console.error('Failed to load products:', err);
-        });
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    const searchButton = document.querySelector(".search-button");
-    const searchOverlay = document.querySelector(".search-overlay");
-
-    if (searchButton && searchOverlay) {
-        searchButton.addEventListener("click", () => {
-            searchOverlay.classList.toggle("active");
-        });
+// Close search overlay when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.nav-search')) {
+        searchOverlay.classList.remove('active');
     }
 });
 
