@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const html = `
       <div class="product-detail-card">
-        <img src="${product.image}" alt="${product.name}" class="product-image">
+        <img src="${product.image}" alt="${product.name}" class="product-details-image">
         <div class="product-info">
           <h2>${product.name}</h2>
           <p><strong>Category:</strong> ${product.category?.name || "N/A"}</p>

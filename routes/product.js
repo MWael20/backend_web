@@ -60,15 +60,50 @@ router.get('/search', async (req, res) => {
   const query = req.query.q;
 
   try {
-    const products = await Product.find({
-      name: { $regex: query, $options: 'i' }
-    }).populate('brand').populate('category'); // ✅ populate both
+    const products = await Product.aggregate([
+      {
+        $lookup: {
+          from: 'brands',
+          localField: 'brand',
+          foreignField: '_id',
+          as: 'brand'
+        }
+      },
+      {
+        $unwind: '$brand'
+      },
+      {
+        $lookup: {
+          from: 'categories',
+          localField: 'category',
+          foreignField: '_id',
+          as: 'category'
+        }
+      },
+      {
+        $unwind: {
+          path: '$category',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $match: {
+          $or: [
+            { name: { $regex: query, $options: 'i' } },
+            { 'brand.name': { $regex: query, $options: 'i' } },
+            { 'category.name': { $regex: query, $options: 'i' } }
+          ]
+        }
+      }
+    ]);
 
     res.json({ success: true, data: products });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+
 
 
 

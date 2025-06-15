@@ -98,38 +98,80 @@ document.querySelectorAll('.product-card').forEach(card => {
 
 // Add to cart functionality with enhanced animation
 document.querySelectorAll('.add-to-cart').forEach(button => {
-    button.addEventListener('click', function() {
+    button.addEventListener('click', async function(event) {
+        event.preventDefault();
         const product = this.closest('.product-card');
+        
+        const productId = product.querySelector('img').getAttribute('onclick').match(/id=([^'&]+)/)[1];
         const productName = product.querySelector('h3').textContent;
-        const productPrice = product.querySelector('.price').textContent;
+        const productPrice = parseFloat(product.querySelector('.price').textContent.match(/\d+(\.\d+)?/)[0]);
+        const productImage = product.querySelector('img').src;
         
-        // Create ripple effect
-        const ripple = document.createElement('span');
-        ripple.className = 'ripple';
-        this.appendChild(ripple);
-        
-        const rect = this.getBoundingClientRect();
-        const size = Math.max(rect.width, rect.height);
-        ripple.style.width = ripple.style.height = `${size}px`;
-        
-        const x = event.clientX - rect.left - size / 2;
-        const y = event.clientY - rect.top - size / 2;
-        ripple.style.left = `${x}px`;
-        ripple.style.top = `${y}px`;
-        
-        // Remove ripple after animation
-        setTimeout(() => {
-            ripple.remove();
-        }, 600);
-        
-        // Button animation
-        this.classList.add('clicked');
-        setTimeout(() => {
-            this.classList.remove('clicked');
-        }, 200);
-        
-        // Show notification with enhanced animation
-        showNotification(`${productName} added to cart!`);
+        const newItem = {
+            productId,
+            name: productName,
+            price: productPrice,
+            image: productImage,
+            quantity: 1
+        };
+
+        const token = localStorage.getItem('token');
+
+        try {
+            if (token) {
+                // ✅ Logged in → send to server
+                const response = await fetch('http://localhost:3000/api/v1/cart', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                          },
+                          body: JSON.stringify({ productId, quantity: 1 })
+                        });
+
+                if (!response.ok) throw new Error('Failed to add item to cart');
+
+                // You may optionally fetch updated cart here
+            } else {
+                // ❌ Not logged in → use localStorage
+                let cartItems = JSON.parse(localStorage.getItem('cart') || '[]');
+                const index = cartItems.findIndex(item => item.productId === productId);
+
+                if (index !== -1) {
+                    cartItems[index].quantity = Math.min(cartItems[index].quantity + 1, 10);
+                } else {
+                    cartItems.push(newItem);
+                }
+
+                localStorage.setItem('cart', JSON.stringify(cartItems));
+            }
+
+            // ✅ Update cart badge
+            updateCartBadge();
+
+            // 💫 Ripple animation
+            const ripple = document.createElement('span');
+            ripple.className = 'ripple';
+            this.appendChild(ripple);
+
+            const rect = this.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            ripple.style.width = ripple.style.height = `${size}px`;
+
+            const x = event.clientX - rect.left - size / 2;
+            const y = event.clientY - rect.top - size / 2;
+            ripple.style.left = `${x}px`;
+            ripple.style.top = `${y}px`;
+
+            setTimeout(() => ripple.remove(), 600);
+            this.classList.add('clicked');
+            setTimeout(() => this.classList.remove('clicked'), 200);
+
+            showNotification(`${productName} added to cart!`);
+        } catch (error) {
+            console.error('Error adding to cart:', error);
+            showNotification('Failed to add item to cart', 'error');
+        }
     });
 });
 
@@ -374,289 +416,315 @@ searchStyle.textContent = `
     }
 `;
 
+window.addEventListener('DOMContentLoaded', () => {
+    fetchFeaturedProducts();
+    fetchCategories();
+    fetchBrands();
+    fetchAllProducts();
+});
 
+function fetchFeaturedProducts() {
+    fetch('http://localhost:3000/api/v1/product?populate=brand,category')
+        .then(res => res.json())
+        .then(products => {
+            const featuredContainer = document.getElementById('featured-products-container');
+            featuredContainer.innerHTML = '';
 
+            const featuredProducts = products.filter(product => product.isFeatured);
 
-
- window.addEventListener('DOMContentLoaded', () => {
-      fetchFeaturedProducts();
-      fetchCategories();
-      fetchBrands();
-      fetchAllProducts();
-    });
-
-    function fetchFeaturedProducts() {
-  fetch('http://localhost:3000/api/v1/product?populate=brand,category')
-    .then(res => res.json())
-    .then(products => {
-      const featuredContainer = document.getElementById('featured-products-container');
-      featuredContainer.innerHTML = '';
-
-      const featuredProducts = products.filter(product => product.isFeatured);
-
-      featuredProducts.forEach(product => {
-        const card = document.createElement('div');
-        card.className = 'product-card';
-        card.innerHTML = `
-          <div class="product-card" onclick="window.location.href='productDetails.html?id=${product._id}'">
-            <img src="${product.image}" alt="${product.name}">
-            <h3>${product.name}</h3>
-            <p>${product.brand?.name || "Unknown Brand"}</p>
-            <p>Price: ${product.price} EGP</p>
-            <button class="add-to-cart" onclick="event.stopPropagation(); addToCart(event)">Add to Cart</button>
-            <span class="cart-message" style="display:none;">✔ Added to Cart!</span>
-          </div>
-        `;
-        featuredContainer.appendChild(card);
-      });
-    })
-    .catch(error => {
-      console.error('Error loading featured products:', error);
-    });
-}
-
-
-
-
-    function fetchCategories() {
-      fetch('http://localhost:3000/api/v1/category')
-    .then(res => res.json())
-    .then(data => {
-      const container = document.getElementById('category-grid');
-      container.innerHTML = '';
-
-      data.forEach(category => {
-        const card = document.createElement('div');
-        card.className = 'category-card';
-
-        card.innerHTML = `
-          <img src="${category.image}" alt="${category.name}">
-          <h3>${category.name}</h3>
-        `;
-
-        card.addEventListener('click', () => {
-          window.location.href = `searchProduct.html?category=${category._id}`;
+            featuredProducts.forEach(product => {
+                const card = document.createElement('div');
+                card.className = 'product-card';
+                card.innerHTML = `
+                        <img class="product-image" src="${product.image}" alt="${product.name}" onclick="window.location.href='productDetails.html?id=${product._id}'">
+                        <div class="product-info">
+                            <h3 onclick="window.location.href='productDetails.html?id=${product._id}'">${product.name}</h3>
+                            <p class="brand">${product.brand?.name || "Unknown Brand"}</p>
+                            <p class="price">Price: ${product.price} EGP</p>
+                        </div>
+                        <div class="product-actions">
+                            <button class="add-to-cart" onclick="event.stopPropagation(); addToCart(event)">
+                                <i class="fas fa-shopping-cart"></i> Add to Cart
+                            </button>
+                            <span class="cart-message" style="display:none;">✔ Added to Cart!</span>
+                        </div>
+                    `;
+                featuredContainer.appendChild(card);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading featured products:', error);
         });
-
-        container.appendChild(card);
-      });
-    })
-    .catch(err => {
-      console.error('Error fetching categories:', err);
-    });
 }
 
-
-    function fetchBrands() {
-      fetch('http://localhost:3000/api/v1/brand')
+function fetchCategories() {
+    fetch('http://localhost:3000/api/v1/category')
         .then(res => res.json())
         .then(data => {
-          const container = document.getElementById('brand-grid');
-          container.innerHTML = '';
+            const container = document.getElementById('category-grid');
+            container.innerHTML = '';
 
-          data.forEach(brand => {
-            const card = document.createElement('div');
-            card.className = 'brand-card';
-            card.innerHTML = `<h3>${brand.name}</h3>`;
-            container.appendChild(card);
-          });
+            data.forEach(category => {
+                const card = document.createElement('div');
+                card.className = 'category-card';
+
+                card.innerHTML = `
+                    <img src="${category.image}" alt="${category.name}">
+                    <h3>${category.name}</h3>
+                `;
+
+                card.addEventListener('click', () => {
+                    window.location.href = `searchProduct.html?category=${category._id}`;
+                });
+
+                container.appendChild(card);
+            });
         })
         .catch(err => {
-          console.error('Error fetching brands:', err);
+            console.error('Error fetching categories:', err);
         });
-    }
-
-   function fetchAllProducts() {
-  fetch('http://localhost:3000/api/v1/product?populate=brand,category')
-    .then(res => res.json())
-    .then(products => {
-      const container = document.getElementById('all-products-container');
-      const grouped = {};
-
-      products.forEach(product => {
-        const category = product.category?.name || 'Others';
-        if (!grouped[category]) grouped[category] = [];
-        grouped[category].push(product);
-      });
-
-      Object.entries(grouped).forEach(([category, items], index) => {
-        const section = document.createElement('section');
-        section.classList.add('category-section');
-
-        const h2 = document.createElement('h2');
-        h2.textContent = category;
-        section.appendChild(h2);
-
-        const grid = document.createElement('div');
-        grid.className = 'product-grid';
-
-        items.forEach((product, i) => {
-          const card = document.createElement('div');
-          card.className = 'product-card fade-in';
-          card.style.animationDelay = `${(i + 1) * 0.1}s`;
-
-          card.innerHTML = `
-            <div class="product-card" style="cursor: pointer;">
-              <img src="${product.image}" alt="${product.name}" onclick="window.location.href='productDetails.html?id=${product._id}'">
-              <h3 onclick="window.location.href='productDetails.html?id=${product._id}'">${product.name}</h3>
-              <p>${product.brand?.name || "Unknown Brand"}</p>
-              <p>Price: ${product.price} EGP</p>
-              <button class="add-to-cart" onclick="event.stopPropagation(); addToCart(this)">Add to Cart</button>
-              <span class="cart-message" style="display:none;">✔ Added to Cart!</span>
-            </div>
-          `;
-
-          grid.appendChild(card);
-        });
-
-        section.appendChild(grid);
-        container.appendChild(section);
-      });
-    })
-    .catch(err => {
-      console.error('Failed to load products:', err);
-    });
 }
 
+function fetchBrands() {
+    fetch('http://localhost:3000/api/v1/brand')
+        .then(res => res.json())
+        .then(data => {
+            const container = document.getElementById('brand-grid');
+            container.innerHTML = '';
 
+            data.forEach(brand => {
+                const card = document.createElement('div');
+                card.className = 'brand-card';
+                card.innerHTML = `<h3>${brand.name}</h3>`;
+                container.appendChild(card);
+            });
+        })
+        .catch(err => {
+            console.error('Error fetching brands:', err);
+        });
+}
+
+function fetchAllProducts() {
+    fetch('http://localhost:3000/api/v1/product?populate=brand,category')
+        .then(res => res.json())
+        .then(products => {
+            const container = document.getElementById('all-products-container');
+            const grouped = {};
+
+            products.forEach(product => {
+                const category = product.category?.name || 'Others';
+                if (!grouped[category]) grouped[category] = [];
+                grouped[category].push(product);
+            });
+
+            Object.entries(grouped).forEach(([category, items], index) => {
+                const section = document.createElement('section');
+                section.classList.add('category-section');
+
+                const h2 = document.createElement('h2');
+                h2.textContent = category;
+                section.appendChild(h2);
+
+                const grid = document.createElement('div');
+                grid.className = 'product-grid';
+
+                items.forEach((product, i) => {
+                    const card = document.createElement('div');
+                    card.className = 'product-card fade-in';
+                    card.style.animationDelay = `${(i + 1) * 0.1}s`;
+
+                    card.innerHTML = `
+                        <img class="product-image" src="${product.image}" alt="${product.name}" onclick="window.location.href='productDetails.html?id=${product._id}'">
+                        <div class="product-info">
+                            <h3 onclick="window.location.href='productDetails.html?id=${product._id}'">${product.name}</h3>
+                            <p class="brand">${product.brand?.name || "Unknown Brand"}</p>
+                            <p class="price">Price: ${product.price} EGP</p>
+                        </div>
+                        <div class="product-actions">
+                            <button class="add-to-cart" onclick="event.stopPropagation(); addToCart(event)">
+                                <i class="fas fa-shopping-cart"></i> Add to Cart
+                            </button>
+                            <span class="cart-message" style="display:none;">✔ Added to Cart!</span>
+                        </div>
+                    `;
+
+                    grid.appendChild(card);
+                });
+
+                section.appendChild(grid);
+                container.appendChild(section);
+            });
+        })
+        .catch(err => {
+            console.error('Failed to load products:', err);
+        });
+}
 
 document.addEventListener("DOMContentLoaded", () => {
-  const searchButton = document.querySelector(".search-button");
-  const searchOverlay = document.querySelector(".search-overlay");
+    const searchButton = document.querySelector(".search-button");
+    const searchOverlay = document.querySelector(".search-overlay");
 
-  if (searchButton && searchOverlay) {
-    searchButton.addEventListener("click", () => {
-      searchOverlay.classList.toggle("active");
-    });
-  }
+    if (searchButton && searchOverlay) {
+        searchButton.addEventListener("click", () => {
+            searchOverlay.classList.toggle("active");
+        });
+    }
 });
-
-
 
 document.addEventListener("DOMContentLoaded", async () => {
-  const params = new URLSearchParams(window.location.search);
-  const searchTerm = params.get("q");
-  const categoryId = params.get("category");
+    const params = new URLSearchParams(window.location.search);
+    const searchTerm = params.get("q");
+    const categoryId = params.get("category");
 
-  const container = document.getElementById("search-results-container");
-  container.innerHTML = "<p>Loading products...</p>";
+    const container = document.getElementById("search-results-container");
+    container.innerHTML = "<p>Loading products...</p>";
 
-  try {
-    let apiUrl = "";
+    try {
+        let apiUrl = "";
 
-    if (searchTerm) {
-      apiUrl = `http://localhost:3000/api/v1/product/search?q=${searchTerm}&populate=brand`;
-    } else if (categoryId) {
-      apiUrl = `http://localhost:3000/api/v1/product?category=${categoryId}&populate=brand`;
+        if (searchTerm) {
+            apiUrl = `http://localhost:3000/api/v1/product/search?q=${searchTerm}&populate=brand`;
+        } else if (categoryId) {
+            apiUrl = `http://localhost:3000/api/v1/product?category=${categoryId}&populate=brand`;
+        }
+
+        if (!apiUrl) {
+            container.innerHTML = "<p>No search query provided.</p>";
+            return;
+        }
+
+        const res = await fetch(apiUrl);
+        const result = await res.json();
+
+        // ✅ Support both formats: direct array or { success: true, data: [...] }
+        const products = Array.isArray(result)
+            ? result
+            : result.success && Array.isArray(result.data)
+            ? result.data
+            : [];
+
+        if (products.length === 0) {
+            container.innerHTML = "<p>No products found.</p>";
+            return;
+        }
+
+        displayProducts(products);
+    } catch (error) {
+        console.error("Failed to fetch products", error);
+        container.innerHTML = "<p>Error loading products.</p>";
     }
-
-    if (!apiUrl) {
-      container.innerHTML = "<p>No search query provided.</p>";
-      return;
-    }
-
-    const res = await fetch(apiUrl);
-    const result = await res.json();
-
-    // ✅ Support both formats: direct array or { success: true, data: [...] }
-    const products = Array.isArray(result)
-      ? result
-      : result.success && Array.isArray(result.data)
-      ? result.data
-      : [];
-
-    if (products.length === 0) {
-      container.innerHTML = "<p>No products found.</p>";
-      return;
-    }
-
-    displayProducts(products);
-  } catch (error) {
-    console.error("Failed to fetch products", error);
-    container.innerHTML = "<p>Error loading products.</p>";
-  }
 });
 
+                    
 function displayProducts(products) {
-  const container = document.getElementById("search-results-container");
+    const container = document.getElementById("search-results-container");
 
-  container.innerHTML = products
-    .map(product => `
-      <div class="product-card" onclick="window.location.href='productDetails.html?id=${product._id}'">
-        <img src="${product.image}" alt="${product.name}">
-        <h3>${product.name}</h3>
-        <p>${product.brand?.name || "Unknown Brand"}</p>
-        <p>Price: ${product.price} EGP</p>
-        <button class="add-to-cart" onclick="event.stopPropagation(); addToCart(event)">Add to Cart</button>
-        <span class="cart-message" style="display:none;">✔ Added to Cart!</span>
-      </div>
-    `)
-    .join("");
+    container.innerHTML = products
+        .map(product => `
+            <div class="product-card" onclick="window.location.href='productDetails.html?id=${product._id}'">
+                <img class="product-image "src="${product.image}" alt="${product.name}">
+                <h3>${product.name}</h3>
+                <p>${product.brand?.name || "Unknown Brand"}</p>
+                <p>Price: ${product.price} EGP</p>
+                <button class="add-to-cart" onclick="event.stopPropagation(); addToCart(event)">Add to Cart</button>
+                <span class="cart-message" style="display:none;">✔ Added to Cart!</span>
+            </div>
+        `)
+        .join("");
 }
 
 function addToCart(event) {
-  const btn = event.target;
-  const message = btn.nextElementSibling;
-  message.style.display = "inline";
-  setTimeout(() => {
-    message.style.display = "none";
-  }, 2000);
+    const btn = event.target;
+    const productCard = btn.closest('.product-card');
+    const productId = productCard.querySelector('img').onclick.toString().match(/id=([^'&]+)/)[1];
+    const productName = productCard.querySelector('h3').textContent;
+    const productPrice = parseFloat(productCard.querySelector('p:last-of-type').textContent.match(/\d+/)[0]);
+    const productImage = productCard.querySelector('img').src;
+
+    // Create new item object
+    const newItem = {
+        productId,
+        name: productName,
+        price: productPrice,
+        image: productImage,
+        quantity: 1
+    };
+
+    // Get existing cart items or initialize empty array
+    let cartItems = JSON.parse(localStorage.getItem('cart') || '[]');
+    
+    // Check if item already exists in cart
+    const existingItemIndex = cartItems.findIndex(item => item.productId === productId);
+    
+    if (existingItemIndex !== -1) {
+        // Increment quantity if item exists
+        cartItems[existingItemIndex].quantity = Math.min(cartItems[existingItemIndex].quantity + 1, 10);
+    } else {
+        // Add new item if it doesn't exist
+        cartItems.push(newItem);
+    }
+
+    // Save updated cart to localStorage
+    localStorage.setItem('cart', JSON.stringify(cartItems));
+
+    // Show success message
+    const message = btn.nextElementSibling;
+    message.style.display = "inline";
+    setTimeout(() => {
+        message.style.display = "none";
+    }, 2000);
 }
 
 document.getElementById("searchButton").addEventListener("click", () => {
-  const input = document.getElementById("searchInput").value.trim();
-  if (input) {
-    window.location.href = `searchProduct.html?q=${encodeURIComponent(input)}`;
-  }
-});
-
-
-  document.addEventListener("DOMContentLoaded", () => {
-  const token = localStorage.getItem("token");
-  const loginLink = document.getElementById("login-link");
-  const logoutLink = document.getElementById("logout-link");
-  const logoutMessage = document.getElementById("logout-message");
-  const isAdmin = localStorage.getItem('isAdmin') === 'true';
-
-  if (loginLink && logoutLink) {
-    if (token) {
-      loginLink.style.display = "none";
-      logoutLink.style.display = "inline";
-
-      //  Only show admin link if logged in AND isAdmin
-      if (isAdmin) {
-        const adminLink = document.getElementById("admin-link");
-        if (adminLink) adminLink.style.display = "inline";
-      }
-
-    } else {
-      loginLink.style.display = "inline";
-      logoutLink.style.display = "none";
-
-      //  Hide admin link if logged out
-      const adminLink = document.getElementById("admin-link");
-      if (adminLink) adminLink.style.display = "none";
+    const input = document.getElementById("searchInput").value.trim();
+    if (input) {
+        window.location.href = `searchProduct.html?q=${encodeURIComponent(input)}`;
     }
-
-    // Logout handler
-    logoutLink.addEventListener("click", (e) => {
-      e.preventDefault();
-      localStorage.removeItem("token");
-      localStorage.removeItem("isAdmin");
-
-      if (logoutMessage) {
-        logoutMessage.style.display = "block";
-        setTimeout(() => {
-          logoutMessage.style.display = "none";
-          window.location.href = "login.html";
-        }, 2500);
-      } else {
-        window.location.href = "login.html";
-      }
-    });
-  }
 });
 
+document.addEventListener("DOMContentLoaded", () => {
+    const token = localStorage.getItem("token");
+    const loginLink = document.getElementById("login-link");
+    const logoutLink = document.getElementById("logout-link");
+    const logoutMessage = document.getElementById("logout-message");
+    const isAdmin = localStorage.getItem('isAdmin') === 'true';
 
+    if (loginLink && logoutLink) {
+        if (token) {
+            loginLink.style.display = "none";
+            logoutLink.style.display = "inline";
 
+            //  Only show admin link if logged in AND isAdmin
+            if (isAdmin) {
+                const adminLink = document.getElementById("admin-link");
+                if (adminLink) adminLink.style.display = "inline";
+            }
+
+        } else {
+            loginLink.style.display = "inline";
+            logoutLink.style.display = "none";
+
+            //  Hide admin link if logged out
+            const adminLink = document.getElementById("admin-link");
+            if (adminLink) adminLink.style.display = "none";
+        }
+
+        // Logout handler
+        logoutLink.addEventListener("click", (e) => {
+            e.preventDefault();
+            localStorage.removeItem("token");
+            localStorage.removeItem("isAdmin");
+
+            if (logoutMessage) {
+                logoutMessage.style.display = "block";
+                setTimeout(() => {
+                    logoutMessage.style.display = "none";
+                    window.location.href = "login.html";
+                }, 2500);
+            } else {
+                window.location.href = "login.html";
+            }
+        });
+    }
+});
 

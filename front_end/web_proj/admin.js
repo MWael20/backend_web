@@ -459,7 +459,7 @@ document.getElementById('add-category-btn').addEventListener('click', async () =
 
     // Reset form fields
     nameField.value = '';
-    imageField.value = '';
+    // No imageField for brand, so nothing else to reset here
 
     // Scroll back to top smoothly
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -482,16 +482,11 @@ document.getElementById('add-category-btn').addEventListener('click', async () =
 
 document.getElementById('add-brand-btn').addEventListener('click', async () => {
   const nameField = document.getElementById('brand-name');
-  
 
   if (!nameField.value.trim()) {
     showStatusMessage('❌ Brand name is required.', 'error');
     return;
   }
-
-  const formData = new FormData();
-  formData.append('name', nameField.value.trim());
-  
 
   const token = localStorage.getItem('token');
 
@@ -499,9 +494,10 @@ document.getElementById('add-brand-btn').addEventListener('click', async () => {
     const res = await fetch('http://localhost:3000/api/v1/brand', {
       method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
       },
-      body: formData
+      body: JSON.stringify({ name: nameField.value.trim() })
     });
 
     if (!res.ok) {
@@ -515,7 +511,6 @@ document.getElementById('add-brand-btn').addEventListener('click', async () => {
 
     // Reset form fields
     nameField.value = '';
-    imageField.value = '';
 
     // Scroll back to top smoothly
     window.scrollTo({ top: 0, behavior: 'smooth' });

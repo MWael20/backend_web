@@ -24,6 +24,11 @@ function authJwt() {
       { url: /\/api\/v1\/category(.*)/, methods: ["GET", "OPTIONS" , "POST" , "PUT"] },
       { url: /\/api\/v1\/brand(.*)/, methods: ["GET", "OPTIONS" , "PUT" , "POST"] },
       { url: /\/api\/v1\/user(.*)/, methods: ["GET", "OPTIONS", "PUT" , "DELETE"] },
+      { url: /\/api\/v1\/order(.*)/, methods: ["GET", "OPTIONS" ] },
+      { url: /\/api\/v1\/review(.*)/, methods: ["GET", "OPTIONS"] },
+      { url: /\/api\/v1\/shipping(.*)/, methods: ["GET", "OPTIONS"] },
+      { url: /\/api\/v1\/cart(.*)/, methods: ["GET", "OPTIONS" , "PUT" , "POST"] },
+      { url: /\/api\/v1\/payment(.*)/, methods: ["GET", "OPTIONS"] },
 
       //  Auth routes
       '/favicon.ico',

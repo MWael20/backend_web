@@ -57,6 +57,7 @@ const productRouter = require("./routes/product");
 const orderRouter = require("./routes/order");
 const reviewRouter = require("./routes/review");
 const shippingRouter = require("./routes/shipping");
+const cartRouter = require("./routes/cart");
 const userRouter = require("./routes/user");
 const brandRouter = require("./routes/brand");
 const categoryRouter = require("./routes/category");
@@ -66,6 +67,7 @@ const paymentRouter = require("./routes/payment");
 const api = process.env.API_URL;
 
 app.use(`${api}/product`, productRouter);
+app.use(`${api}/cart`, cartRouter);
 app.use(`${api}/order`, orderRouter);
 app.use(`${api}/review`, reviewRouter);
 app.use(`${api}/shipping`, shippingRouter);

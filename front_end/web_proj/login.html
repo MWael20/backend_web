@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Alien PC Parts</title>
+  <title>Login - Alien PC Parts</title>
   <link rel="stylesheet" href="styles.css" />
   <link
     rel="stylesheet"
@@ -13,71 +13,109 @@
 <body>
   <header>
     <nav class="navbar">
-      <a href="index.html" class="logo">ALIEN</a>
+      <div class="logo">ALIEN</div>
       <div class="nav-links">
         <a href="index.html">Home</a>
         <a href="products.html">Products</a>
         <a href="searchProduct.html">About</a>
-        <a href="#contact">Contact</a>
+        <a href="login.html" id="login-link" class="active">Login</a>
+        <a href="#" id="logout-link" style="display: none;">Logout</a>
+        <a href="admin.html" id="admin-link" style="display: none;">Admin</a>
       </div>
       <div class="nav-icons">
-        <i class="fas fa-search"></i>
-        <i class="fas fa-shopping-cart"></i>
+        <div class="nav-search">
+          <div class="search-button">
+            <i class="fas fa-search"></i>
+          </div>
+          <div class="search-overlay">
+            <input type="text" id="searchInput" placeholder="Search products..." />
+            <button id="searchButton">
+              <i class="fas fa-search"></i>
+            </button>
+          </div>
+        </div>
+        <a href="cart.html" class="cart-icon">
+          <i class="fas fa-shopping-cart"></i>
+          <span class="cart-badge">0</span>
+        </a>
       </div>
     </nav>
   </header>
 
+  <main>
+    <p id="message" style="color: red;"></p>
 
-    <main>
-      <p id="message" style="color: red;"></p>
+    <div class="auth-form">
+      <h2>Login / Register</h2>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required />
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required />
+        </div>
+        <button type="submit">Sign In</button>
+        <p>Don't have an account? <a href="register.html">Register here</a></p>
+      </form>
+    </div>
+  </main>
 
-       <div class="auth-form">
-    <h2>Login / Register</h2>
-    <form id="loginForm">
-  <div class="form-group">
-    <label for="email">Email</label>
-    <input type="email" id="email" name="email" required />
-  </div>
-  <div class="form-group">
-    <label for="password">Password</label>
-    <input type="password" id="password" name="password" required />
-  </div>
-  <button type="submit">Sign In</button>
-  <p>Don't have an account? <a href="register.html">Register here</a></p>
-</form>
+  <script src="script.js"></script>
+  <script>
+    // Update cart badge on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      const cartItems = JSON.parse(localStorage.getItem('cart') || '[]');
+      const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+      const badge = document.querySelector('.cart-badge');
+      if (badge) {
+        badge.textContent = totalItems;
+        badge.style.display = totalItems > 0 ? 'block' : 'none';
+      }
 
-<script>
-document.getElementById("loginForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value.trim();
-
-  if (!email || !password) {
-    alert("Please fill in both email and password");
-    return;
-  }
-
-  try {
-    const response = await fetch("http://localhost:3000/api/v1/user/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      // Setup search functionality
+      const searchButton = document.querySelector('.search-button');
+      const searchOverlay = document.querySelector('.search-overlay');
+      if (searchButton && searchOverlay) {
+        searchButton.addEventListener('click', () => {
+          searchOverlay.classList.toggle('active');
+        });
+      }
     });
 
-    const data = await response.json();
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
 
-    if (response.ok) {
-      document.getElementById('message').textContent = '🎉 Login successful!';
-     localStorage.setItem("token", data.token);
+      if (!email || !password) {
+        alert("Please fill in both email and password");
+        return;
+      }
 
-      localStorage.setItem("isAdmin", data.isAdmin); // ✅ Save isAdmin flag
-      window.location.href = "index.html";
-    } else {
-      document.getElementById('message').textContent = '❌ ' + (data.message || "Login failed.");
-    }
-  } catch (err) {
-    console.error(err);
-    alert("⚠️ Error while logging in.");
-  }
-});
-</script>
+      try {
+        const response = await fetch("http://localhost:3000/api/v1/user/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          document.getElementById('message').textContent = '🎉 Login successful!';
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("isAdmin", data.isAdmin);
+          window.location.href = "index.html";
+        } else {
+          document.getElementById('message').textContent = '❌ ' + (data.message || "Login failed.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("⚠️ Error while logging in.");
+      }
+    });
+  </script>
+</body>
+</html>

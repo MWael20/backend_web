@@ -3,6 +3,7 @@ const router = express.Router();
 const { Cart } = require('../Data/cart');
 const { Product } = require('../Data/product');
 
+
 // Get user's cart
 router.get('/', async (req, res) => {
     try {
